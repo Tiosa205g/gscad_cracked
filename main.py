@@ -7,9 +7,9 @@ paths = ["C:\\gscad\\steelize.ini", "C:\\Windows\\steelize.ini"]
 is_wr = False
 
 
-def write(cfg, path):
+def write(cfg, path, encoding="utf-8"):
     try:
-        with open(path, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding=encoding) as f:
             cfg.write(f)
     except PermissionError:
         print(f"权限不足,无法写入: {path}")
@@ -18,10 +18,30 @@ def write(cfg, path):
 
 
 def wr_th(path: str):
+    encodings = ["gbk", "gb2312", "utf-8", "latin-1"]
+    config_encoding = None
+
     while True:
         try:
-            config = configparser.ConfigParser()
-            config.read(path, encoding="utf-8")
+            # 首次运行时检测编码
+            if config_encoding is None:
+                for enc in encodings:
+                    try:
+                        config = configparser.ConfigParser()
+                        config.read(path, encoding=enc)
+                        config_encoding = enc
+                        print(f"检测到编码: {path} 使用 {enc}")
+                        break
+                    except (UnicodeDecodeError, UnicodeEncodeError):
+                        continue
+                if config_encoding is None:
+                    print(f"无法识别 {path} 的编码")
+                    time.sleep(0.5)
+                    continue
+            else:
+                config = configparser.ConfigParser()
+                config.read(path, encoding=config_encoding)
+
             is_modified = False
             for item in config["User"].items():
                 if item[1] == "3":
@@ -31,12 +51,10 @@ def wr_th(path: str):
                     is_modified = True
                     config.set("User", item[0], "1")
             if is_modified:
-                write(config, path)
+                write(config, path, config_encoding)
                 print(f"\n已修改: {path}")
         except KeyError:
             print(f"配置文件 {path} 中未找到 [User] 节")
-        except FileNotFoundError:
-            print(f"配置文件不存在: {path}")
         except Exception as e:
             print(f"处理 {path} 时出错: {e}")
         time.sleep(0.5)  # 500ms一次检测
@@ -48,6 +66,6 @@ if __name__ == "__main__":
         t.start()
     is_run = True
     while is_run:
-        is_run = False if input("输入q退出:") == "q" else True
+        is_run = False if input("输入q退出\n") == "q" else True
 
     exit(0)
